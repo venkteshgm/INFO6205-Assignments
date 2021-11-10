@@ -19,25 +19,45 @@ public class Main {
     public static void main(String[] args) {
         processArgs(args);
         System.out.println("Degree of parallelism: " + ForkJoinPool.getCommonPoolParallelism());
+        System.out.println("processor count: " + Runtime.getRuntime().availableProcessors());
+//        ForkJoinPool fjp = new ForkJoinPool(2);
         Random random = new Random();
-        int[] array = new int[2000000];
+
         ArrayList<Long> timeList = new ArrayList<>();
-        for (int j = 50; j < 100; j++) {
-            ParSort.cutoff = 10000 * (j + 1);
-            // for (int i = 0; i < array.length; i++) array[i] = random.nextInt(10000000);
-            long time;
-            long startTime = System.currentTimeMillis();
-            for (int t = 0; t < 10; t++) {
-                for (int i = 0; i < array.length; i++) array[i] = random.nextInt(10000000);
-                ParSort.sort(array, 0, array.length);
+        for(int arrLen = 1000000;arrLen<=4000000;arrLen+=1000000) {
+            int[] array = new int[arrLen];
+            for (int tCount = 2; tCount <= 32; tCount = tCount * 2) {
+                ForkJoinPool fjp = new ForkJoinPool(tCount);
+                long meanTime = 0;
+                long minTime = 10000000;
+                long optimalCutoff = 10000000;
+
+                for (int j = 5; j < 200; j = j + 10) {
+                    ParSort.cutoff = 10000 * (j);
+                    // for (int i = 0; i < array.length; i++) array[i] = random.nextInt(10000000);
+                    long time;
+                    long startTime = System.currentTimeMillis();
+                    for (int t = 0; t < 10; t++) {
+                        for (int i = 0; i < array.length; i++) array[i] = random.nextInt(10000000);
+                        ParSort.sort(array, 0, array.length, fjp);
+                    }
+                    long endTime = System.currentTimeMillis();
+                    time = (endTime - startTime);
+                    timeList.add(time);
+                    meanTime += time;
+                    if (time < minTime) {
+                        minTime = time;
+                        optimalCutoff = ParSort.cutoff;
+                    }
+
+
+                    //                System.out.println("cutoff：" + (ParSort.cutoff) + "\t\t10times Time:" + time + "ms");
+//                    System.out.println(time);
+
+                }
+                meanTime /= 20;
+                System.out.println("for arrayLen: "+arrLen+" threadCount: " + tCount + " threads, meanTime: " + meanTime + " minTime: " + minTime + " optimal cutoff: " + optimalCutoff);
             }
-            long endTime = System.currentTimeMillis();
-            time = (endTime - startTime);
-            timeList.add(time);
-
-
-            System.out.println("cutoff：" + (ParSort.cutoff) + "\t\t10times Time:" + time + "ms");
-
         }
         try {
             FileOutputStream fis = new FileOutputStream("./src/result.csv");
